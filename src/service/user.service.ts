@@ -4,13 +4,18 @@ import bcrypt from 'bcrypt'
 import { GetAllUserQueryParamsDTO } from "../constant/basequery.param.dto";
 import { Op } from "sequelize";
 
-export class userService{
-    async registerUser(userData:IUser){
+export class userService {
+    async registerUser(userData: any) {
 
-        const { email, password, username} = userData;
-        const userExistsAlready = await Users.findOne({ where: { 
-            [Op.or]: [{ email }, { username }],
-         } });
+        const { email, password, username, cnf_password, role = 'user' } = userData;
+        if (password !== cnf_password) {
+            throw new Error('Passwords must match');
+        }
+        const userExistsAlready = await Users.findOne({
+            where: {
+                [Op.or]: [{ email }, { username }],
+            }
+        });
         if (userExistsAlready) {
             throw new Error('User already exists');
         }
@@ -20,39 +25,38 @@ export class userService{
                 email,
                 username,
                 password: encryptedPassword,
+                role,
             }
         );
         return user;
     }
 
 
-    async generateToken (user:any) {
+    async generateToken(user: any) {
         try {
-            const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET as string, {
+            console.log(user)
+            const token = jwt.sign({ userId: user.id, email: user.dataValues.email, role: user.dataValues.role }, process.env.JWT_SECRET as string || "SomethingSecret", {
                 expiresIn: '1h',
             });
             return token;
         } catch (error) {
-            console.error('Failed to generate token:', (error as Error).message);
-            process.exit(1);
+            throw new Error(`Failed to generate token: ${(error as Error).message}`);
         }
     }
-    
-    async encryptPassword (password: string) {
+
+    async encryptPassword(password: string) {
         try {
             const encryptedPassword = await bcrypt.hash(password, 10);
             return encryptedPassword;
         } catch (error) {
-            console.error('Failed to encrypt password:', (error as Error).message);
-            process.exit(1);
+            throw new Error(`Failed to encrypt password: ${(error as Error).message}`);
         }
     }
-    
+
 
     async loginUser(email: string, password: string) {
         try {
             const user = await Users.findOne({ where: { email } });
-            console.log("🚀 ~ userService ~ loginUser ~ user:", user?.dataValues?.password)
             if (!user) {
                 return null;
             }
@@ -62,35 +66,34 @@ export class userService{
             }
             return user;
         } catch (error) {
-            console.error('Failed to login user:', (error as Error));
-            return null;
+            throw new Error(`Failed to login user: ${(error as Error).message}`);
         }
     }
 
 
-    async getAllUser(queryParams: GetAllUserQueryParamsDTO){
+    async getAllUser(queryParams: GetAllUserQueryParamsDTO) {
         const { pageNum = 1, pageLimit = 10, search, sortField, sortOrder, name, gender, email, phone, username, role } = queryParams;
         const offset = ((Number(pageNum) - 1) * Number(pageLimit)) || 0;
         const limit = Number(pageLimit) || 10;
-        const order = sortOrder === 'asc' ? 'ASC' : 'DESC'; 
+        const order = sortOrder === 'asc' ? 'ASC' : 'DESC';
         const searchQuery = search || '';
         const where = {
-            ...searchQuery ? 
-            {
-                [Op.or] :[
-                    {
-                        name: {
-                            [Op.like]: `%${searchQuery}%`,
+            ...searchQuery ?
+                {
+                    [Op.or]: [
+                        {
+                            name: {
+                                [Op.like]: `%${searchQuery}%`,
+                            }
+                        },
+                        {
+                            email: {
+                                [Op.like]: `%${searchQuery}%`,
+                            }
                         }
-                    },
-                    {
-                        email: {
-                            [Op.like]: `%${searchQuery}%`,
-                        }
-                    }
-                ]
-            }
-            : {},
+                    ]
+                }
+                : {},
 
             // ...searchQuery ? { [Op.or]: [
             //     // { name: { [Op.like]: `%${searchQuery}%` } },
@@ -102,22 +105,32 @@ export class userService{
             //     [Op.like]: `%${name}%`,
             // },
             // gender,
-            ...email ? { email: {
-                [Op.like]: `%${email}%`,
-            } } : {},
+            ...email ? {
+                email: {
+                    [Op.like]: `%${email}%`,
+                }
+            } : {},
             // phone: {
             //     [Op.like]: `%${phone}%`,
             // },
-            ...username ? { username: {
-                [Op.like]: `%${username}%`,
-            } } : {},
+            ...username ? {
+                username: {
+                    [Op.like]: `%${username}%`,
+                }
+            } : {},
             // role,
         };
         const { rows, count } = await Users.findAndCountAll({
             where,
+            attributes:[
+                'id',
+                'username',
+                'email',
+                'role'
+            ],
             order: [[sortField || 'id', order]],
             offset,
-            limit,
+            limit
         });
         return {
             users: rows,
@@ -125,5 +138,12 @@ export class userService{
             limit: limit,
             totalRecords: count
         };
+    }
+
+
+    async countAllUser() {
+        const count = await Users.count();
+        console.log(count);
+        return count;
     }
 }

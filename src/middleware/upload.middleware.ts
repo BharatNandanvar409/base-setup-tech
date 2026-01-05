@@ -1,24 +1,26 @@
-import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
-const uploadDir = path.join(__dirname, '../../uploads')
-if(!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir)
-}
+import multer from 'multer';
+import { FileValidator, ALLOWED_FILE_TYPES } from '../utils/file-validation.util';
+import { Request } from 'express';
 
-const storage = multer.diskStorage({
-    destination: function(req, file, cb){
-        cb(null, uploadDir)
-    },
-    filename: function(req, file, cb){
-        const ext = path.extname(file.originalname);
-        const baseName = path.basename(file.originalname, ext).replace(/\s+/g, '-');
-        const uniqeSuffix = Date.now()
-        cb(null, `${baseName}-${uniqeSuffix}${ext}`);
+// Use memory storage since we're uploading to S3
+const storage = multer.memoryStorage();
+
+// File filter for additional validation
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const validation = FileValidator.validateMimeType(file.mimetype);
+
+    if (!validation.valid) {
+        cb(new Error(validation.error));
+        return;
     }
-})
+
+    cb(null, true);
+};
 
 export const upload = multer({
     storage,
-    limits: { fileSize: 1024 * 1024 * 5 },
-})
+    limits: {
+        fileSize: 50 * 1024 * 1024, // 50MB max (will be validated by FileValidator based on type)
+    },
+    fileFilter,
+});

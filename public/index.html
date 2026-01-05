@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Module Reorder Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    .container { display: flex; gap: 32px; }
+    .module { border: 1px solid #ddd; border-radius: 8px; padding: 12px; width: 280px; }
+    .module h2 { margin: 0 0 8px; font-size: 18px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 8px 10px; margin: 6px 0; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 6px; cursor: grab; }
+    li.dragging { opacity: 0.5; }
+    li.over { outline: 2px dashed #3b82f6; }
+    .row { display: flex; align-items: center; justify-content: space-between; }
+    .actions { margin-top: 16px; }
+    button { padding: 8px 12px; }
+  </style>
+  <script>
+    let modules = [];
+
+    async function fetchModules() {
+      const res = await fetch('/modules');
+      const json = await res.json();
+      modules = json.data;
+      render();
+    }
+
+    function render() {
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+      modules.forEach(m => {
+        const modEl = document.createElement('div');
+        modEl.className = 'module';
+        modEl.innerHTML = `<h2>${m.name}</h2><ul id="list-${m.key}"></ul>`;
+        container.appendChild(modEl);
+        const ul = modEl.querySelector('ul');
+        m.children.forEach((c, idx) => {
+          const li = document.createElement('li');
+          li.textContent = c.name;
+          li.setAttribute('draggable', 'true');
+          li.dataset.parentKey = m.key;
+          li.dataset.key = c.key;
+          li.dataset.index = String(idx);
+          attachDnDHandlers(li);
+          ul.appendChild(li);
+        });
+      });
+    }
+
+    function attachDnDHandlers(el) {
+      el.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({
+          parentKey: e.target.dataset.parentKey,
+          sourceKey: e.target.dataset.key,
+          sourceIndex: Number(e.target.dataset.index)
+        }));
+        e.target.classList.add('dragging');
+      });
+      el.addEventListener('dragend', (e) => {
+        e.target.classList.remove('dragging');
+        document.querySelectorAll('li.over').forEach(n => n.classList.remove('over'));
+      });
+      el.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        e.target.classList.add('over');
+      });
+      el.addEventListener('dragleave', (e) => {
+        e.target.classList.remove('over');
+      });
+      el.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const payload = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const targetIndex = Number(e.target.dataset.index);
+        const targetParent = e.target.dataset.parentKey;
+        if (payload.parentKey !== targetParent) return;
+        await submitReorder({ parentKey: payload.parentKey, sourceKey: payload.sourceKey, targetIndex });
+      });
+    }
+
+    async function submitReorder(body) {
+      const res = await fetch('/modules/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (json.status === 'Success') {
+        const updatedParent = json.data;
+        modules = modules.map(m => m.key === updatedParent.key ? updatedParent : m);
+        render();
+      } else {
+        alert(json.error || 'Failed');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', fetchModules);
+  </script>
+  </head>
+<body>
+  <h1>Drag and Drop Sub Modules</h1>
+  <div class="container" id="container"></div>
+  <div class="actions">
+    <button onclick="fetchModules()">Reset</button>
+  </div>
+</body>
+</html>
+

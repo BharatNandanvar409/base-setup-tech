@@ -1,0 +1,67 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Travel Buddy API",
+    "version": "1.0.0",
+    "description": "API documentation for Travel Buddy backend, including auth, preferences, destinations, orders, audit, trips, and itinerary."
+  },
+  "servers": [
+    { "url": "http://localhost:{port}", "variables": { "port": { "default": "3000" } , "jwt": { "default": "Bearer <JWT>" } } }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "LoginRequest": { "type": "object", "properties": { "email": { "type": "string" }, "password": { "type": "string" } }, "required": ["email","password"] },
+      "RegisterRequest": { "type": "object", "properties": { "email": { "type": "string" }, "username": { "type": "string" }, "password": { "type": "string" }, "cnf_password": { "type": "string" }, "role": { "type": "string", "enum": ["user","admin"] } }, "required": ["email","username","password","cnf_password"] },
+      "PreferenceUpsert": { "type": "object", "properties": { "budgetMin": { "type":"number" }, "budgetMax": { "type":"number" }, "travelType": { "type":"string","enum":["solo","couple","family"] }, "preferredDestinations": { "type":"array","items":{"type":"string"} }, "foodInterests": { "type":"array","items":{"type":"string"} }, "activityInterests": { "type":"array","items":{"type":"string"} } } },
+      "DestinationCreate": { "type": "object", "properties": { "country": { "type":"string" }, "city": { "type":"string" }, "bestTimeToVisit": { "type":"string" }, "avgCost": { "type":"number" }, "activities": { "type":"array","items":{"type":"string"} }, "safetyScore": { "type":"number" }, "metadata": { "type":"object" } }, "required": ["country","city"] },
+      "DestinationUpdate": { "type": "object", "properties": { "country": { "type":"string" }, "city": { "type":"string" }, "bestTimeToVisit": { "type":"string" }, "avgCost": { "type":"number" }, "activities": { "type":"array","items":{"type":"string"} }, "safetyScore": { "type":"number" }, "metadata": { "type":"object" } } },
+      "OrderCreate": { "type":"object","properties":{"orderNumber":{"type":"string"}} },
+      "OrderAddItem": { "type":"object","properties":{"orderId":{"type":"string"},"productId":{"type":"string"},"quantity":{"type":"integer"},"unitPrice":{"type":"number"}}, "required":["orderId","productId","quantity","unitPrice"] },
+      "OrderUpdateItem": { "type":"object","properties":{"itemId":{"type":"string"},"quantity":{"type":"integer"},"unitPrice":{"type":"number"}}, "required":["itemId"] },
+      "OrderUpdateWithAuditPreview": { "type":"object","properties":{"orderId":{"type":"string"},"itemId":{"type":"string"},"productId":{"type":"string"},"status":{"type":"string"},"itemQuantityDelta":{"type":"integer"},"productPriceDelta":{"type":"number"}}, "required":["orderId","itemId","productId"] },
+      "TripCreate": { "type":"object","properties":{ "startDate": {"type":"string","format":"date"}, "endDate": {"type":"string","format":"date"}, "status":{"type":"string","enum":["planned","ongoing","completed"]}, "notes":{"type":"string"}, "companions":{"type":"array","items":{"type":"string"}}, "destinationIds":{"type":"array","items":{"type":"string"}} }, "required":["startDate","endDate"] },
+      "TripAddDestination": { "type":"object","properties":{ "tripId":{"type":"string"}, "destinationId":{"type":"string"}, "order":{"type":"integer"} }, "required":["tripId","destinationId"] },
+      "ItineraryGenerateAuto": { "type":"object","properties":{ "tripId":{"type":"string"} }, "required":["tripId"] },
+      "ItineraryGenerate": { "type":"object","properties":{ "tripId":{"type":"string"}, "days":{"type":"array","items":{"type":"object","properties":{"date":{"type":"string","format":"date"},"notes":{"type":"string"}}}} }, "required":["tripId","days"] },
+      "ItineraryAddActivity": { "type":"object","properties":{ "dayId":{"type":"string"}, "title":{"type":"string"}, "timeStart":{"type":"string"}, "timeEnd":{"type":"string"}, "order":{"type":"integer"}, "notes":{"type":"string"} }, "required":["dayId","title"] },
+      "ItineraryReorderActivities": { "type":"object","properties":{ "orders":{"type":"array","items":{"type":"object","properties":{"activityId":{"type":"string"},"order":{"type":"integer"}},"required":["activityId","order"]}} }, "required":["orders"] }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/auth/register": { "post": { "summary":"Register", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RegisterRequest"}}}}, "responses":{ "201":{"description":"Registered"} } } },
+    "/auth/login": { "post": { "summary":"Login", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/LoginRequest"}}}}, "responses":{ "200":{"description":"Token"} } } },
+    "/auth/users": { "get": { "summary":"List users", "responses":{ "200":{"description":"OK"} } } },
+    "/modules": { "get": { "summary":"List modules", "responses":{ "200":{"description":"OK"} } } },
+    "/modules/reorder": { "post": { "summary":"Reorder modules", "responses":{ "200":{"description":"OK"} } } },
+    "/products": { "get": { "summary":"List products", "responses":{ "200":{"description":"OK"} } } },
+    "/products/resync": { "get": { "summary":"Resync products", "responses":{ "200":{"description":"OK"} } } },
+    "/products/check-new": { "get": { "summary":"Check new products", "responses":{ "200":{"description":"OK"} } } },
+    "/assets/upload": { "post": { "summary":"Upload asset (auth)", "responses":{ "200":{"description":"Uploaded"} } } },
+    "/assets/delete": { "delete": { "summary":"Delete asset (auth)", "responses":{ "200":{"description":"Deleted"} } } },
+    "/preferences/me": { "get": { "summary":"Get my preferences", "responses":{ "200":{"description":"OK"} } } },
+    "/preferences/upsert": { "post": { "summary":"Upsert preferences", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/PreferenceUpsert"}}}}, "responses":{ "200":{"description":"Updated"} } } },
+    "/preferences/delete": { "delete": { "summary":"Delete preferences", "responses":{ "200":{"description":"Deleted"} } } },
+    "/destinations": { "get": { "summary":"List destinations", "responses":{ "200":{"description":"List"} } }, "post": { "summary":"Create destination (admin)", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DestinationCreate"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/destinations/{id}": { "get": { "summary":"Get destination", "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses":{ "200":{"description":"OK"} } }, "put": { "summary":"Update destination (admin)", "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DestinationUpdate"}}}}, "responses":{ "200":{"description":"Updated"} } }, "delete": { "summary":"Delete destination (admin)", "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses":{ "200":{"description":"Deleted"} } } },
+    "/orders/create": { "post": { "summary":"Create order", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrderCreate"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/orders/add-item": { "post": { "summary":"Add item", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrderAddItem"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/orders/update-item": { "put": { "summary":"Update item", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrderUpdateItem"}}}}, "responses":{ "200":{"description":"Updated"} } } },
+    "/orders/update-order": { "put": { "summary":"Update order", "responses":{ "200":{"description":"Updated"} } } },
+    "/orders/update-with-audit-preview": { "post": { "summary":"Update with audit preview", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrderUpdateWithAuditPreview"}}}}, "responses":{ "200":{"description":"OK"} } } },
+    "/orders/multi-update-with-fields": { "post": { "summary":"Multi update with fields", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/OrderMultiUpdateWithFields"}}}}, "responses":{ "200":{"description":"OK"} } } },
+    "/audit/latest": { "get": { "summary":"Get latest audit", "responses":{ "200":{"description":"OK"} } } },
+    "/audit/list": { "get": { "summary":"List audits", "responses":{ "200":{"description":"OK"} } } },
+    "/audit/by-request/{id}": { "get": { "summary":"Get audit by request", "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}], "responses":{ "200":{"description":"OK"} } } },
+    "/trips": { "post": { "summary":"Create trip", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/TripCreate"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/trips/add-destination": { "post": { "summary":"Add destination to trip", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/TripAddDestination"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/itinerary/generate-auto": { "post": { "summary":"Generate itinerary from trip dates", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ItineraryGenerateAuto"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/itinerary/generate": { "post": { "summary":"Generate itinerary manually", "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ItineraryGenerate"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/itinerary/day/{dayId}/activities": { "post": { "summary":"Add activity to day", "parameters":[{"name":"dayId","in":"path","required":true,"schema":{"type":"string"}}], "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ItineraryAddActivity"}}}}, "responses":{ "201":{"description":"Created"} } } },
+    "/itinerary/day/{dayId}/activities/reorder": { "put": { "summary":"Reorder activities in day", "parameters":[{"name":"dayId","in":"path","required":true,"schema":{"type":"string"}}], "requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ItineraryReorderActivities"}}}}, "responses":{ "200":{"description":"Updated"} } } },
+    "/itinerary/{tripId}": { "get": { "summary":"Get itinerary for trip", "parameters":[{"name":"tripId","in":"path","required":true,"schema":{"type":"string"}}], "responses":{ "200":{"description":"OK"} } } }
+  }
+}

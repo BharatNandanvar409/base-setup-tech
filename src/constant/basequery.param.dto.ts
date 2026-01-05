@@ -20,3 +20,10 @@ export class GetAllUserQueryParamsDTO extends BaseQueryParamsDTO {
     username?: string;
     role?: string;
 }
+
+
+export class GetAllProductQueryParamsDTO extends BaseQueryParamsDTO {
+    name?: string;
+    price?: string;
+    category?: string;
+}

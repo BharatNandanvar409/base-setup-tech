@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FCM Token Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      .card {
+        background: #020617;
+        padding: 24px;
+        border-radius: 12px;
+        width: 420px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      }
+      button {
+        margin-top: 16px;
+        padding: 10px 14px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        width: 100%;
+        font-size: 15px;
+      }
+      button:hover {
+        background: #1d4ed8;
+      }
+      pre {
+        margin-top: 16px;
+        background: #020617;
+        padding: 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        overflow-x: auto;
+        color: #38bdf8;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <h2>🔥 FCM Token Generator</h2>
+      <p>Click below to generate FCM token</p>
+
+      <button onclick="requestPermission()">Generate Token</button>
+
+      <pre id="tokenOutput">Token will appear here...</pre>
+    </div>
+
+    <script>
+      // 🔐 Firebase config (PASTE FROM CONSOLE)
+      const firebaseConfig = {
+        apiKey: "AIzaSyCiofh2sAubMfINszYVuQAWhjhibOrjTMM",
+        authDomain: "inventorysystem-789d8.firebaseapp.com",
+        projectId: "inventorysystem-789d8",
+        messagingSenderId: "442264943302",
+        appId: "1:442264943302:web:8a50b468ac1174a51875c7",
+      };
+
+      // 🚀 Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+
+      const messaging = firebase.messaging();
+
+      async function requestPermission() {
+        try {
+          const permission = await Notification.requestPermission();
+
+          if (permission !== "granted") {
+            alert("Notification permission denied");
+            return;
+          }
+
+          const token = await messaging.getToken({
+            vapidKey: "BLSGPyVu0Abfmx9ujSnJFKQIb-FIdx4uQftcjK4NYlEByXpl9svMJ6Fz7yT1fYkBOkdNbcZBDPD1cmc3I8Rw3Lw",
+          });
+
+          console.log("🔥 FCM TOKEN:", token);
+          document.getElementById("tokenOutput").textContent = token;
+        } catch (err) {
+          console.error("FCM Error:", err);
+          alert("Error generating token. Check console.");
+        }
+      }
+
+      // 🔔 Listen for foreground messages
+      messaging.onMessage((payload) => {
+        console.log("📩 Message received:", payload);
+        alert(
+          payload.notification?.title + "\n" + payload.notification?.body
+        );
+      });
+    </script>
+  </body>
+</html>

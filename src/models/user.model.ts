@@ -1,5 +1,6 @@
 
-import { Column, Model, DataType, Table, BelongsTo } from "sequelize-typescript";
+import { Column, Model, DataType, Table, AfterCreate, AfterUpdate, AfterDestroy } from "sequelize-typescript";
+import { requestAsyncStore } from "../utils/request-context.util";
 
 export interface IUser{
     id?: string;
@@ -7,6 +8,8 @@ export interface IUser{
     email: string;
     password: string;
     token?: string
+    role?: 'user' | 'admin',
+    fcmToken?: string,
 }
 @Table({
     tableName: "users",
@@ -56,4 +59,59 @@ export class Users extends Model<IUser> {
         allowNull: true,
     })
     token?: string;
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: false,
+        defaultValue: 'user',
+    })
+    role?: 'user' | 'admin';
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: true,
+    })
+    fcmToken?: string;
+
+    @AfterCreate
+    static afterCreateHook(instance: Users) {
+        const ctx = requestAsyncStore.getStore();
+        if (ctx) {
+            ctx.auditEvents.push({
+                table: 'users',
+                operation: 'create',
+                prev: null,
+                next: instance.toJSON(),
+            });
+        }
+    }
+
+    @AfterUpdate
+    static afterUpdateHook(instance: Users) {
+        const ctx = requestAsyncStore.getStore();
+        if (ctx) {
+            const prevRaw = (instance as any)._previousDataValues || null;
+            const prev = prevRaw ? JSON.parse(JSON.stringify(prevRaw)) : null;
+            ctx.auditEvents.push({
+                table: 'users',
+                operation: 'update',
+                prev,
+                next: instance.toJSON(),
+            });
+        }
+    }
+
+    @AfterDestroy
+    static afterDestroyHook(instance: Users) {
+        const ctx = requestAsyncStore.getStore();
+        if (ctx) {
+            ctx.auditEvents.push({
+                table: 'users',
+                operation: 'destroy',
+                prev: instance.toJSON(),
+                next: null,
+            });
+        }
+    }
+
 }
